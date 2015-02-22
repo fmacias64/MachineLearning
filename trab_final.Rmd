@@ -1,0 +1,127 @@
+---
+title: "Machine Learning"
+author: "Felipe Macias"
+date: "21/02/2015"
+output: html_document
+---
+#Synopsis
+
+Using data sets provided by  Groupware@LES (http://groupware.les.inf.puc-rio.br/har) a machine learning prediction model will be given for predicting the manner in which they did the exercise. The variable classe in the data set will be predicted.
+
+#Work to be done
+
+we'll proceed in the following manner:
+
+- Obtaining the Data, for training and test sets
+- Cleaning Data:
+    +  Getting rid of columns with : high ocurrence of "NA"or null strings, NearZeroVariance,   "#DIV/0"
+    +  Supressed columns in training set, would be supressed also on the test set
+
+- Configuring traincontrol for a kfold cross validation.
+- Training & predicting
+- Informing on errors
+
+
+##Obtaining the data
+Datasets are downloaded from these liks:
+
+-https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+-https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+
+```{r}
+training <- read.csv("/home/felipe/Dropbox/Coursera/MachineLearning_JohnHopkins/pml-training.csv", na.strings=c("", "NA", "#DIV/0!"),header=T, quote="\"", sep=",")
+
+test <- read.csv("/home/felipe/Dropbox/Coursera/MachineLearning_JohnHopkins/pml-testing.csv", na.strings=c("", "NA", "#DIV/0!"),header=T, quote="\"", sep=",")
+
+```
+
+##Cleanning Data:
+
+1.-Supressing features with high frequency of "NA" on training and test
+2.- Supressing non contributing features.
+3.- Finding near zero variance columns
+
+
+```{r}
+library(caret)
+#1
+novan=apply(training, 2, function(x) sum(is.na(x)) > 0.9  || sum(x=="") > 0.9)
+training<-training[,!novan]
+test<-test[,!novan]
+
+#2 Non interesting columns
+training<-training[,c(-1:-7)]
+test<-test[,c(-1:-7)]
+#3 supressin near zoro variance
+varianza_cero <- nearZeroVar(training, saveMetrics = TRUE)
+training <- training[ , varianza_cero$nzv==FALSE] 
+test <- test[ , varianza_cero$nzv==FALSE] 
+
+#removing highly correlated columns
+M <- abs(cor(training[,-dim(training)[2]]))
+diag(M) <- 0 
+correlated<-findCorrelation(M, verbose = FALSE , cutoff = .90)
+training<-training[,-correlated]
+test<-test[,-correlated]
+```
+
+
+
+
+Boosting method will be used, with a cross validation of 2 folds and a repetition:
+
+```{r, messages=FALSE}
+library(gbm)
+library(survival)
+library(splines)
+library(plyr)
+
+inTrain = createDataPartition(training$classe, p = 0.8, list=FALSE)
+trainingCV1 <- training[inTrain,]
+trainingCV2 <- training[-inTrain,]
+
+fitControl <- trainControl(method = "repeatedcv",number = 2,repeats = 1)
+
+set.seed(322)
+
+modFit <- train(classe ~ ., method="gbm",trControl=fitControl,data=trainingCV1,verbose=FALSE)
+```
+
+Our resulting model :
+```{r}
+trellis.par.set(caretTheme())
+
+print(modFit)
+plot(modFit)
+```
+Important variables of model and Confussion Matrix on cross validation set prediction:
+```{r}
+
+important <- varImp(modFit)
+plot(important, main = "Features in order of importance")
+
+cvpred<-predict(modFit,trainingCV2)
+confusionMatrix(cvpred, trainingCV2$classe)
+```
+# The prediction
+```{r}
+tested <- predict(modFit, test)
+tested
+```
+
+# Creating the submission files:
+```{r}
+answers <- as.vector(tested)
+
+pml_write_files = function(x) {
+    n = length(x)
+    for (i in 1:n) {
+        filename = paste0("problem_id_", i, ".txt")
+        write.table(x[i], file = filename, quote = FALSE, row.names = FALSE, 
+            col.names = FALSE)
+    }
+}
+
+pml_write_files(answers)
+```
