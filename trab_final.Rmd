@@ -15,11 +15,12 @@ we'll proceed in the following manner:
 - Obtaining the Data, for training and test sets
 - Cleaning Data:
     +  Getting rid of columns with : high ocurrence of "NA"or null strings, NearZeroVariance,   "#DIV/0"
+    +  Removing highly correlated features
     +  Supressed columns in training set, would be supressed also on the test set
 
 - Configuring traincontrol for a kfold cross validation.
-- Training & predicting
-- Informing on errors
+- Training & predicting with Boost method and cross validation
+- Presenting confussion matrix, important variables
 
 
 ##Obtaining the data
@@ -38,10 +39,13 @@ test <- read.csv("/home/felipe/Dropbox/Coursera/MachineLearning_JohnHopkins/pml-
 
 ##Cleanning Data:
 
-1.-Supressing features with high frequency of "NA" on training and test
-2.- Supressing non contributing features.
-3.- Finding near zero variance columns
+1.-Supressing features with high frequency of "NA" on training and test.
 
+2.- Supressing non contributing features.
+
+3.- Finding near zero variance columns.
+
+4.- Removing highly correlated features
 
 ```{r}
 library(caret)
@@ -58,10 +62,10 @@ varianza_cero <- nearZeroVar(training, saveMetrics = TRUE)
 training <- training[ , varianza_cero$nzv==FALSE] 
 test <- test[ , varianza_cero$nzv==FALSE] 
 
-#removing highly correlated columns
+#4 removing highly correlated columns
 M <- abs(cor(training[,-dim(training)[2]]))
 diag(M) <- 0 
-correlated<-findCorrelation(M, verbose = FALSE , cutoff = .90)
+correlated<-findCorrelation(M, verbose = FALSE , cutoff = .95)
 training<-training[,-correlated]
 test<-test[,-correlated]
 ```
@@ -72,16 +76,16 @@ test<-test[,-correlated]
 Boosting method will be used, with a cross validation of 2 folds and a repetition:
 
 ```{r, messages=FALSE}
-library(gbm)
 library(survival)
 library(splines)
 library(plyr)
+library(gbm)
 
 inTrain = createDataPartition(training$classe, p = 0.8, list=FALSE)
 trainingCV1 <- training[inTrain,]
 trainingCV2 <- training[-inTrain,]
 
-fitControl <- trainControl(method = "repeatedcv",number = 2,repeats = 1)
+fitControl <- trainControl(method = "repeatedcv",number = 5,repeats = 2)
 
 set.seed(322)
 
@@ -95,7 +99,7 @@ trellis.par.set(caretTheme())
 print(modFit)
 plot(modFit)
 ```
-Important variables of model and Confussion Matrix on cross validation set prediction:
+Important variables of model and Confussion Matrix on prediction of cross validation set :
 ```{r}
 
 important <- varImp(modFit)
