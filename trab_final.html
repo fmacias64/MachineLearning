@@ -83,7 +83,7 @@ img {
 <li>Removing highly correlated features</li>
 <li>Supressed columns in training set, would be supressed also on the test set</li>
 </ul></li>
-<li>Configuring traincontrol for a kfold cross validation.</li>
+<li>Configuring traincontrol for repeated cross validation.</li>
 <li>Training &amp; predicting with Boost method and cross validation</li>
 <li>Presenting confussion matrix, important variables</li>
 </ul>
@@ -123,7 +123,7 @@ diag(M) &lt;- 0
 correlated&lt;-findCorrelation(M, verbose = FALSE , cutoff = .95)
 training&lt;-training[,-correlated]
 test&lt;-test[,-correlated]</code></pre>
-<p>Boosting method will be used, with a cross validation of 2 folds and a repetition:</p>
+<p>Boosting method will be used, with repeated cross validation of 5 folds and 2 repetitions:</p>
 <pre class="r"><code>library(survival)</code></pre>
 <pre><code>## Loading required package: splines
 ## 
